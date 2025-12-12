@@ -922,9 +922,41 @@ bool MovementAction::IsDuplicateMove(uint32 mapId, float x, float y, float z)
 {
     LastMovement& lastMove = *context->GetValue<LastMovement&>("last movement");
 
-    // heuristic 5s
-    if (lastMove.msTime + sPlayerbotAIConfig->maxWaitForMove < getMSTime() ||
-        lastMove.lastMoveShort.GetExactDist(x, y, z) > 0.01f)
+    // Check if last move has expired
+    if (lastMove.msTime + sPlayerbotAIConfig->maxWaitForMove < getMSTime())
+        return false;
+
+    // =========================================================================
+    // Movement Hysteresis - Prevent jitter from small position changes
+    // =========================================================================
+    // Use a larger threshold to prevent constant micro-adjustments that cause
+    // bots to appear jittery or indecisive.
+
+    float distToNewTarget = lastMove.lastMoveShort.GetExactDist(x, y, z);
+
+    // Hysteresis threshold based on context:
+    // - Very small moves (< 1.0 yards): Always skip - this is jitter
+    // - Small moves in combat (< 2.0 yards): Skip unless high priority
+    // - Normal threshold: 0.01 (original behavior for significant moves)
+
+    constexpr float HYSTERESIS_MIN = 1.0f;        // Minimum distance to consider moving
+    constexpr float HYSTERESIS_COMBAT = 2.0f;     // Combat threshold for jitter prevention
+
+    // Always skip very small movements
+    if (distToNewTarget < HYSTERESIS_MIN)
+        return true;
+
+    // In combat, apply stricter hysteresis to prevent combat jitter
+    if (bot->IsInCombat() && distToNewTarget < HYSTERESIS_COMBAT)
+    {
+        // Allow if we haven't moved recently (been still for 2+ seconds)
+        uint32 timeSinceLastMove = getMSTimeDiff(lastMove.msTime, getMSTime());
+        if (timeSinceLastMove < 2000)
+            return true;
+    }
+
+    // Original behavior for larger movements
+    if (distToNewTarget > 0.01f)
         return false;
 
     return true;

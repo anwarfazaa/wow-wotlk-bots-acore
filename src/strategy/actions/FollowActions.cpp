@@ -168,3 +168,45 @@ bool FleeToGroupLeaderAction::isUseful()
 
     return true;
 }
+
+bool ResumeFollowAfterTeleportAction::Execute(Event event)
+{
+    // Remove stay strategy and ensure follow is active
+    bool hadStay = botAI->HasStrategy("stay", BOT_STATE_NON_COMBAT);
+    bool hadFollow = botAI->HasStrategy("follow", BOT_STATE_NON_COMBAT);
+
+    if (hadStay)
+    {
+        botAI->ChangeStrategy("-stay", BOT_STATE_NON_COMBAT);
+    }
+
+    if (!hadFollow)
+    {
+        botAI->ChangeStrategy("+follow", BOT_STATE_NON_COMBAT);
+    }
+
+    // Clear stale movement state to allow fresh pathfinding after map change
+    bot->GetMotionMaster()->Clear();
+    bot->StopMoving();
+
+    // Clear the last movement value to prevent movement priority conflicts
+    // This ensures the bot can immediately start new movement after teleport
+    LastMovement& lastMove = context->GetValue<LastMovement&>("last movement")->Get();
+    lastMove.clear();
+
+    // Log the restoration
+    if (hadStay || !hadFollow)
+    {
+        LOG_DEBUG("playerbots", "Bot {} resumed follow after teleport/map change (had stay: {}, had follow: {})",
+            bot->GetName(), hadStay, hadFollow);
+    }
+
+    return true;
+}
+
+bool ResumeFollowAfterTeleportAction::isUseful()
+{
+    // This action is useful if the trigger fired (which means we should resume following)
+    // The trigger already checked all the conditions
+    return true;
+}

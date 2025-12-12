@@ -55,6 +55,9 @@
 #include "raids/onyxia/RaidOnyxiaTriggerContext.h"
 #include "raids/icecrown/RaidIccActionContext.h"
 #include "raids/icecrown/RaidIccTriggerContext.h"
+#include "dungeon/TankLeadActionContext.h"
+#include "dungeon/TankLeadTriggerContext.h"
+#include "dungeon/TankLeadStrategyContext.h"
 
 SharedNamedObjectContextList<Strategy> AiObjectContext::sharedStrategyContexts;
 SharedNamedObjectContextList<Action> AiObjectContext::sharedActionContexts;
@@ -104,6 +107,7 @@ void AiObjectContext::BuildSharedStrategyContexts(SharedNamedObjectContextList<S
     strategyContexts.Add(new QuestStrategyContext());
     strategyContexts.Add(new DungeonStrategyContext());
     strategyContexts.Add(new RaidStrategyContext());
+    strategyContexts.Add(new TankLeadStrategyContext());
 }
 
 void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Action>& actionContexts)
@@ -139,6 +143,7 @@ void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Act
     actionContexts.Add(new WotlkDungeonFoSActionContext());
     actionContexts.Add(new WotlkDungeonPoSActionContext());
     actionContexts.Add(new WotlkDungeonToCActionContext());
+    actionContexts.Add(new TankLeadActionContext());
 }
 
 void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Trigger>& triggerContexts)
@@ -174,6 +179,7 @@ void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Tr
     triggerContexts.Add(new WotlkDungeonFoSTriggerContext());
     triggerContexts.Add(new WotlkDungeonPoSTriggerContext());
     triggerContexts.Add(new WotlkDungeonToCTriggerContext());
+    triggerContexts.Add(new TankLeadTriggerContext());
 }
 
 void AiObjectContext::BuildSharedValueContexts(SharedNamedObjectContextList<UntypedValue>& valueContexts)

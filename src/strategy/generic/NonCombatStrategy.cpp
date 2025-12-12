@@ -17,6 +17,12 @@ void NonCombatStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     // triggers.push_back(new TriggerNode("at dark portal azeroth", NextAction::array(0, new NextAction("use dark portal azeroth", 1.0f), nullptr)));
     // triggers.push_back(new TriggerNode("at dark portal outland", NextAction::array(0, new NextAction("move from dark portal", 1.0f), nullptr)));
     // triggers.push_back(new TriggerNode("vehicle near", NextAction::array(0, new NextAction("enter vehicle", 10.0f), nullptr)));
+
+    // Resume follow after teleport/map change - this is in NonCombatStrategy to ensure it fires
+    // even if follow strategy is temporarily disabled
+    triggers.push_back(new TriggerNode(
+        "resume follow after teleport",
+        NextAction::array(0, new NextAction("resume follow after teleport", ACTION_MOVE + 5), nullptr)));
 }
 
 void CollisionStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)

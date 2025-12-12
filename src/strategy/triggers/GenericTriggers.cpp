@@ -10,18 +10,22 @@
 #include "BattlegroundWS.h"
 #include "CreatureAI.h"
 #include "GameTime.h"
+#include "IntentBroadcaster.h"
 #include "ItemVisitors.h"
 #include "LastSpellCastValue.h"
 #include "ObjectGuid.h"
+#include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
+#include "Player.h"
 #include "PositionValue.h"
 #include "SharedDefines.h"
+#include "Spell.h"
+#include "SpellAuras.h"
+#include "SpellMgr.h"
 #include "TemporarySummon.h"
 #include "ThreatMgr.h"
 #include "Timer.h"
-#include "PlayerbotAI.h"
-#include "Player.h"
 
 bool LowManaTrigger::IsActive()
 {
@@ -165,9 +169,125 @@ bool BuffTrigger::IsActive()
     Aura* aura = botAI->GetAura(spell, target, checkIsOwner, checkDuration);
     if (!aura)
         return true;
-    if (beforeDuration && aura->GetDuration() < beforeDuration)
+    if (beforeDuration && aura->GetDuration() < static_cast<int32>(beforeDuration))
         return true;
     return false;
+}
+
+// ============================================================================
+// SmartBuffRefreshTrigger Implementation
+// ============================================================================
+
+namespace BuffRefresh
+{
+    // Duration thresholds (in ms)
+    constexpr uint32 SHORT_BUFF_THRESHOLD = 30000;      // 30 seconds
+    constexpr uint32 MEDIUM_BUFF_THRESHOLD = 300000;    // 5 minutes
+
+    // Refresh percentages (as decimal)
+    constexpr float SHORT_BUFF_REFRESH_PCT = 0.20f;     // 20% remaining
+    constexpr float MEDIUM_BUFF_REFRESH_PCT = 0.15f;    // 15% remaining
+    constexpr float LONG_BUFF_REFRESH_PCT = 0.10f;      // 10% remaining
+
+    // Minimum refresh times (in ms)
+    constexpr uint32 MEDIUM_BUFF_MIN_REFRESH = 5000;    // 5 seconds
+    constexpr uint32 LONG_BUFF_MIN_REFRESH = 30000;     // 30 seconds
+
+    // Maximum refresh threshold - don't refresh above this % remaining
+    constexpr float MAX_REFRESH_THRESHOLD = 0.80f;      // 80% remaining
+    constexpr float COMBAT_CRITICAL_THRESHOLD = 0.50f;  // 50% for critical buffs in combat
+}
+
+bool SmartBuffRefreshTrigger::IsActive()
+{
+    Unit* target = GetTarget();
+    if (!target)
+        return false;
+
+    if (!SpellTrigger::IsActive())
+        return false;
+
+    // Check if buff exists
+    Aura* aura = botAI->GetAura(spell, target, true, true);
+    if (!aura)
+        return true;  // No buff = definitely apply it
+
+    // Get buff timing info
+    int32 duration = aura->GetDuration();
+    int32 maxDuration = aura->GetMaxDuration();
+
+    if (maxDuration <= 0)
+        return false;  // Permanent buff, don't refresh
+
+    // Calculate remaining percentage
+    float remainingPct = static_cast<float>(duration) / static_cast<float>(maxDuration);
+
+    // Never refresh if above max threshold (too much time remaining)
+    if (remainingPct > BuffRefresh::MAX_REFRESH_THRESHOLD)
+    {
+        // Exception: critical buff in combat
+        if (m_isCriticalBuff && bot->IsInCombat() &&
+            remainingPct < BuffRefresh::COMBAT_CRITICAL_THRESHOLD)
+        {
+            // Allow early refresh of critical buffs in combat
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    // Calculate optimal refresh window
+    uint32 refreshWindow = CalculateRefreshWindow(static_cast<uint32>(maxDuration));
+
+    // Check if we're in the refresh window
+    return duration < static_cast<int32>(refreshWindow);
+}
+
+uint32 SmartBuffRefreshTrigger::CalculateRefreshWindow(uint32 maxDuration) const
+{
+    uint32 refreshWindow;
+
+    if (maxDuration < BuffRefresh::SHORT_BUFF_THRESHOLD)
+    {
+        // Short buff: refresh at 20% remaining
+        refreshWindow = static_cast<uint32>(maxDuration * BuffRefresh::SHORT_BUFF_REFRESH_PCT);
+    }
+    else if (maxDuration < BuffRefresh::MEDIUM_BUFF_THRESHOLD)
+    {
+        // Medium buff: refresh at 15% remaining, minimum 5 seconds
+        refreshWindow = static_cast<uint32>(maxDuration * BuffRefresh::MEDIUM_BUFF_REFRESH_PCT);
+        if (refreshWindow < BuffRefresh::MEDIUM_BUFF_MIN_REFRESH)
+            refreshWindow = BuffRefresh::MEDIUM_BUFF_MIN_REFRESH;
+    }
+    else
+    {
+        // Long buff: refresh at 10% remaining, minimum 30 seconds
+        refreshWindow = static_cast<uint32>(maxDuration * BuffRefresh::LONG_BUFF_REFRESH_PCT);
+        if (refreshWindow < BuffRefresh::LONG_BUFF_MIN_REFRESH)
+            refreshWindow = BuffRefresh::LONG_BUFF_MIN_REFRESH;
+    }
+
+    // In combat, refresh earlier for critical buffs
+    if (m_isCriticalBuff && bot->IsInCombat())
+    {
+        refreshWindow = static_cast<uint32>(refreshWindow * 1.5f);
+    }
+
+    // Consider cast time of the spell
+    uint32 spellId = AI_VALUE2(uint32, "spell id", spell);
+    if (spellId)
+    {
+        const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+        if (spellInfo)
+        {
+            uint32 castTime = spellInfo->CalcCastTime();
+            // Add cast time to refresh window so we start casting before buff falls off
+            refreshWindow += castTime;
+        }
+    }
+
+    return refreshWindow;
 }
 
 Value<Unit*>* BuffOnPartyTrigger::GetTargetValue()
@@ -416,6 +536,222 @@ bool ItemCountTrigger::IsActive() { return AI_VALUE2(uint32, "item count", item)
 bool InterruptSpellTrigger::IsActive()
 {
     return SpellTrigger::IsActive() && botAI->IsInterruptableSpellCasting(GetTarget(), getName());
+}
+
+// ============================================================================
+// CoordinatedInterruptTrigger Implementation
+// ============================================================================
+
+bool CoordinatedInterruptTrigger::IsActive()
+{
+    if (!SpellTrigger::IsActive())
+        return false;
+
+    Unit* target = GetTarget();
+    if (!target || !target->IsAlive())
+        return false;
+
+    // Check if target is casting
+    Spell* currentSpell = target->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+    if (!currentSpell)
+        currentSpell = target->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+
+    if (!currentSpell)
+        return false;
+
+    uint32 spellId = currentSpell->GetSpellInfo()->Id;
+
+    // Check if we can interrupt this spell
+    if (!botAI->IsInterruptableSpellCasting(target, getName()))
+        return false;
+
+    // Get interrupt priority - skip very low priority spells
+    uint8 priority = GetInterruptPriority(target, spellId);
+    if (priority < 25)
+        return false;
+
+    // Check if this bot should be the one to interrupt
+    if (!ShouldThisBotInterrupt(target, spellId))
+        return false;
+
+    // Claim the interrupt and proceed
+    return ClaimInterrupt(target, spellId);
+}
+
+uint8 CoordinatedInterruptTrigger::GetInterruptPriority(Unit* target, uint32 spellId) const
+{
+    if (!target)
+        return 0;
+
+    const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+    if (!spellInfo)
+        return 25;  // Unknown spell - low priority
+
+    // Critical priority: Mass CC, wipe mechanics
+    if (IsCrowdControlSpell(spellId))
+    {
+        // Mass CC (affects multiple targets) = critical
+        if (spellInfo->IsAffectingArea())
+            return 100;
+        return 75;
+    }
+
+    // High priority: Healing spells
+    if (IsHealingSpell(spellId))
+    {
+        // Big heals are more important to interrupt
+        // Check if it's a significant heal by looking at cast time
+        if (spellInfo->CalcCastTime() >= 2000)
+            return 85;
+        return 70;
+    }
+
+    // High priority: Dangerous damage spells
+    if (IsDangerousDamageSpell(spellId))
+        return 80;
+
+    // Medium priority: Long cast time spells
+    if (spellInfo->CalcCastTime() >= 3000)
+        return 50;
+
+    // Medium priority: AOE spells
+    if (spellInfo->IsAffectingArea())
+        return 45;
+
+    // Low priority: Everything else
+    return 25;
+}
+
+bool CoordinatedInterruptTrigger::ShouldThisBotInterrupt(Unit* target, uint32 spellId) const
+{
+    // Check if interrupt is already claimed by another bot
+    if (sIntentBroadcaster->IsInterruptClaimed(target->GetGUID(), spellId))
+    {
+        // Someone else is handling it
+        return false;
+    }
+
+    // Check if our interrupt is on cooldown
+    uint32 mySpellId = AI_VALUE2(uint32, "spell id", spell);
+    if (!mySpellId)
+        return false;
+
+    if (!botAI->CanCastSpell(mySpellId, target, true))
+        return false;
+
+    // Get remaining cast time of target
+    Spell* targetSpell = target->GetCurrentSpell(CURRENT_GENERIC_SPELL);
+    if (!targetSpell)
+        targetSpell = target->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+
+    if (!targetSpell)
+        return false;
+
+    int32 remainingCastTime = targetSpell->GetCastTime() - targetSpell->GetTimer();
+
+    // Don't try to interrupt if cast is almost complete (< 300ms)
+    if (remainingCastTime < 300)
+        return false;
+
+    // If cast time is short, we need to act fast - be less picky
+    if (remainingCastTime < 1500)
+        return true;
+
+    // For longer casts, just return true if we can do it
+    return true;
+}
+
+bool CoordinatedInterruptTrigger::IsHealingSpell(uint32 spellId) const
+{
+    const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+    if (!spellInfo)
+        return false;
+
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        if (spellInfo->Effects[i].Effect == SPELL_EFFECT_HEAL ||
+            spellInfo->Effects[i].Effect == SPELL_EFFECT_HEAL_MAX_HEALTH ||
+            spellInfo->Effects[i].Effect == SPELL_EFFECT_HEAL_MECHANICAL ||
+            spellInfo->Effects[i].ApplyAuraName == SPELL_AURA_PERIODIC_HEAL)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CoordinatedInterruptTrigger::IsCrowdControlSpell(uint32 spellId) const
+{
+    const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+    if (!spellInfo)
+        return false;
+
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        uint32 aura = spellInfo->Effects[i].ApplyAuraName;
+        if (aura == SPELL_AURA_MOD_STUN ||
+            aura == SPELL_AURA_MOD_FEAR ||
+            aura == SPELL_AURA_MOD_CONFUSE ||
+            aura == SPELL_AURA_MOD_CHARM ||
+            aura == SPELL_AURA_MOD_SILENCE ||
+            aura == SPELL_AURA_MOD_PACIFY ||
+            aura == SPELL_AURA_MOD_ROOT ||
+            aura == SPELL_AURA_TRANSFORM)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool CoordinatedInterruptTrigger::IsDangerousDamageSpell(uint32 spellId) const
+{
+    const SpellInfo* spellInfo = sSpellMgr->GetSpellInfo(spellId);
+    if (!spellInfo)
+        return false;
+
+    // Check if it's a damage spell
+    bool isDamage = false;
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        if (spellInfo->Effects[i].Effect == SPELL_EFFECT_SCHOOL_DAMAGE ||
+            spellInfo->Effects[i].Effect == SPELL_EFFECT_WEAPON_DAMAGE ||
+            spellInfo->Effects[i].Effect == SPELL_EFFECT_NORMALIZED_WEAPON_DMG)
+        {
+            isDamage = true;
+            break;
+        }
+    }
+
+    if (!isDamage)
+        return false;
+
+    // Consider it dangerous if:
+    // - It's AOE
+    // - It has a long cast time (charged up)
+    if (spellInfo->IsAffectingArea())
+        return true;
+
+    if (spellInfo->CalcCastTime() >= 2500)
+        return true;
+
+    return false;
+}
+
+bool CoordinatedInterruptTrigger::ClaimInterrupt(Unit* target, uint32 spellId)
+{
+    if (!target || !bot)
+        return false;
+
+    // Broadcast our intent to interrupt
+    return sIntentBroadcaster->BroadcastInterruptIntent(
+        bot->GetGUID(),
+        target->GetGUID(),
+        spellId,
+        2000  // 2 second claim duration
+    );
 }
 
 bool DeflectSpellTrigger::IsActive()
@@ -728,5 +1064,73 @@ bool NewPetTrigger::IsActive()
     }
 
     // Otherwise, do not activate
+    return false;
+}
+
+// Static member initialization for ResumeFollowAfterTeleportTrigger
+std::unordered_map<uint64, uint32> ResumeFollowAfterTeleportTrigger::s_lastMapId;
+std::unordered_map<uint64, bool> ResumeFollowAfterTeleportTrigger::s_wasFollowing;
+
+bool ResumeFollowAfterTeleportTrigger::IsActive()
+{
+    // Don't do anything if bot is currently teleporting
+    if (bot->IsBeingTeleported())
+        return false;
+
+    // Don't do anything if bot is not in world
+    if (!bot->IsInWorld())
+        return false;
+
+    uint64 guid = bot->GetGUID().GetRawValue();
+    uint32 currentMapId = bot->GetMapId();
+    uint32 lastMapId = s_lastMapId[guid];
+
+    // Detect map change
+    bool mapChanged = (lastMapId != 0 && lastMapId != currentMapId);
+    s_lastMapId[guid] = currentMapId;
+
+    // Track if we had follow strategy before (for restoration after stay is added)
+    bool hasFollow = botAI->HasStrategy("follow", BOT_STATE_NON_COMBAT);
+    bool hasStay = botAI->HasStrategy("stay", BOT_STATE_NON_COMBAT);
+
+    // If we have follow and not stay, remember we were following
+    if (hasFollow && !hasStay)
+    {
+        s_wasFollowing[guid] = true;
+    }
+
+    // If we have stay but were previously following, check if we should resume
+    if (hasStay && s_wasFollowing[guid])
+    {
+        // Get master or group leader
+        Player* master = botAI->GetMaster();
+        if (!master)
+            master = botAI->GetGroupLeader();
+
+        // If we have a valid master on the same map, we should resume following
+        if (master && master != bot && !master->IsBeingTeleported() &&
+            master->IsInWorld() && master->GetMapId() == currentMapId)
+        {
+            // Clear the wasFollowing flag since we're about to resume
+            s_wasFollowing[guid] = false;
+            return true;
+        }
+    }
+
+    // Also trigger on map change if we were following
+    if (mapChanged && s_wasFollowing[guid])
+    {
+        Player* master = botAI->GetMaster();
+        if (!master)
+            master = botAI->GetGroupLeader();
+
+        if (master && master != bot && !master->IsBeingTeleported() &&
+            master->IsInWorld() && master->GetMapId() == currentMapId)
+        {
+            s_wasFollowing[guid] = false;
+            return true;
+        }
+    }
+
     return false;
 }

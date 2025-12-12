@@ -82,7 +82,10 @@ bool TeleportAction::Execute(Event event)
         out << "Teleporting using " << goInfo->name;
         botAI->TellMasterNoFacing(out.str());
 
-        botAI->ChangeStrategy("-follow,+stay", BOT_STATE_NON_COMBAT);
+        // Mark that we're teleporting - the bot will handle follow resumption
+        // after the teleport completes via the ResumeFollowAfterTeleportTrigger
+        // Note: Don't disable follow here as it causes permanent loss of follow behavior
+        // The teleport itself will temporarily interrupt movement naturally
 
         Spell* spell = new Spell(bot, spellInfo, TRIGGERED_NONE);
         SpellCastTargets targets;

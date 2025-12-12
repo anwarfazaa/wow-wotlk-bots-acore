@@ -50,6 +50,8 @@
 #include "UseFoodStrategy.h"
 #include "UsePotionsStrategy.h"
 #include "WorldPacketHandlerStrategy.h"
+#include "dungeon/TankLeadStrategy.h"
+#include "pathfinding/PathfindingBotStrategy.h"
 
 class StrategyContext : public NamedObjectContext<Strategy>
 {
@@ -120,6 +122,10 @@ public:
         creators["formation"] = &StrategyContext::combat_formation;
         creators["move from group"] = &StrategyContext::move_from_group;
         creators["worldbuff"] = &StrategyContext::world_buff;
+        creators["tank lead"] = &StrategyContext::tank_lead;
+        creators["tank lead nc"] = &StrategyContext::tank_lead_nc;
+        creators["dungeon progress"] = &StrategyContext::dungeon_progress;
+        creators["pathfinding"] = &StrategyContext::pathfinding;
     }
 
 private:
@@ -188,6 +194,10 @@ private:
     static Strategy* combat_formation(PlayerbotAI* botAI) { return new CombatFormationStrategy(botAI); }
     static Strategy* move_from_group(PlayerbotAI* botAI) { return new MoveFromGroupStrategy(botAI); }
     static Strategy* world_buff(PlayerbotAI* botAI) { return new WorldBuffStrategy(botAI); }
+    static Strategy* tank_lead(PlayerbotAI* botAI) { return new TankLeadStrategy(botAI); }
+    static Strategy* tank_lead_nc(PlayerbotAI* botAI) { return new TankLeadNonCombatStrategy(botAI); }
+    static Strategy* dungeon_progress(PlayerbotAI* botAI) { return new DungeonProgressStrategy(botAI); }
+    static Strategy* pathfinding(PlayerbotAI* botAI) { return new PathfindingBotStrategy(botAI); }
 };
 
 class MovementStrategyContext : public NamedObjectContext<Strategy>

@@ -29,4 +29,21 @@ public:
     bool isUseful() override;
 };
 
+/**
+ * ResumeFollowAfterTeleportAction - Restores follow strategy after teleport
+ *
+ * This action:
+ * 1. Removes the 'stay' strategy that was added during teleport
+ * 2. Ensures the 'follow' strategy is active
+ * 3. Clears any stale movement state
+ */
+class ResumeFollowAfterTeleportAction : public Action
+{
+public:
+    ResumeFollowAfterTeleportAction(PlayerbotAI* botAI) : Action(botAI, "resume follow after teleport") {}
+
+    bool Execute(Event event) override;
+    bool isUseful() override;
+};
+
 #endif

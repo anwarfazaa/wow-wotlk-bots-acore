@@ -7,6 +7,7 @@
 #define _PLAYERBOT_GENERICTRIGGERS_H
 
 #include <utility>
+#include <unordered_map>
 
 #include "HealthTriggers.h"
 #include "RangeTriggers.h"
@@ -205,6 +206,63 @@ public:
     bool IsActive() override;
 };
 
+/**
+ * CoordinatedInterruptTrigger - Enhanced interrupt trigger with group coordination
+ *
+ * Features:
+ * - Uses IntentBroadcaster to avoid duplicate interrupts
+ * - Prioritizes dangerous spells (heals, big damage, CC)
+ * - Considers interrupt cooldown vs remaining cast time
+ * - Claims interrupts to prevent multiple bots from trying
+ *
+ * Priority levels:
+ * - CRITICAL (100): Must interrupt (mass CC, wipe mechanics)
+ * - HIGH (75): Should interrupt (healing, big damage)
+ * - MEDIUM (50): Good to interrupt (buffs, moderate damage)
+ * - LOW (25): Can interrupt if no other options
+ */
+class CoordinatedInterruptTrigger : public SpellTrigger
+{
+public:
+    CoordinatedInterruptTrigger(PlayerbotAI* botAI, std::string const spell)
+        : SpellTrigger(botAI, spell) {}
+
+    bool IsActive() override;
+
+    /**
+     * Get priority of the spell being cast by target
+     * Returns 0-100 priority value (higher = more important to interrupt)
+     */
+    uint8 GetInterruptPriority(Unit* target, uint32 spellId) const;
+
+    /**
+     * Check if this bot should be the one to interrupt
+     * Considers other bots' cooldowns and intent claims
+     */
+    bool ShouldThisBotInterrupt(Unit* target, uint32 spellId) const;
+
+private:
+    /**
+     * Check if the spell is a healing spell
+     */
+    bool IsHealingSpell(uint32 spellId) const;
+
+    /**
+     * Check if the spell is crowd control
+     */
+    bool IsCrowdControlSpell(uint32 spellId) const;
+
+    /**
+     * Check if the spell is a dangerous damage spell
+     */
+    bool IsDangerousDamageSpell(uint32 spellId) const;
+
+    /**
+     * Claim this interrupt via IntentBroadcaster
+     */
+    bool ClaimInterrupt(Unit* target, uint32 spellId);
+};
+
 class DeflectSpellTrigger : public SpellTrigger
 {
 public:
@@ -333,6 +391,42 @@ protected:
     bool checkIsOwner;
     bool checkDuration;
     uint32 beforeDuration;
+};
+
+/**
+ * SmartBuffRefreshTrigger - Intelligently refreshes buffs before expiration
+ *
+ * Features:
+ * - Calculates optimal refresh window based on buff duration and cast time
+ * - Considers combat state (refresh earlier in combat)
+ * - Factors in global cooldown and other constraints
+ * - Prevents wasted refreshes on very long duration buffs
+ *
+ * Refresh timing:
+ * - Short buffs (<30s): refresh at 20% remaining
+ * - Medium buffs (30s-5min): refresh at 15% remaining, min 5s
+ * - Long buffs (>5min): refresh at 10% remaining, min 30s
+ * - Never refresh above 80% remaining unless in combat and critical buff
+ */
+class SmartBuffRefreshTrigger : public BuffTrigger
+{
+public:
+    SmartBuffRefreshTrigger(PlayerbotAI* botAI, std::string const spell,
+                            bool isCriticalBuff = false, int32 checkInterval = 1)
+        : BuffTrigger(botAI, spell, checkInterval, true, true, 0)
+        , m_isCriticalBuff(isCriticalBuff)
+    {
+    }
+
+    bool IsActive() override;
+
+    /**
+     * Calculate optimal refresh window in milliseconds
+     */
+    uint32 CalculateRefreshWindow(uint32 maxDuration) const;
+
+protected:
+    bool m_isCriticalBuff;  // Critical buffs get refreshed more aggressively
 };
 
 class BuffOnPartyTrigger : public BuffTrigger
@@ -953,6 +1047,28 @@ public:
 private:
     ObjectGuid lastPetGuid;
     bool triggered;
+};
+
+/**
+ * ResumeFollowAfterTeleportTrigger - Detects when a bot should resume following after teleport
+ *
+ * This trigger fires when:
+ * 1. The bot has the 'stay' strategy enabled (which was set during teleport)
+ * 2. The bot is NOT currently being teleported
+ * 3. The bot is on the same map as their master/group leader
+ * 4. The bot was previously following (follow strategy should be restored)
+ */
+class ResumeFollowAfterTeleportTrigger : public Trigger
+{
+public:
+    ResumeFollowAfterTeleportTrigger(PlayerbotAI* ai) : Trigger(ai, "resume follow after teleport", 2) {}
+
+    bool IsActive() override;
+
+private:
+    // Track the last map ID to detect map changes
+    static std::unordered_map<uint64, uint32> s_lastMapId;
+    static std::unordered_map<uint64, bool> s_wasFollowing;
 };
 
 #endif

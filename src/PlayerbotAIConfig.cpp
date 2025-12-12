@@ -6,7 +6,10 @@
 #include "PlayerbotAIConfig.h"
 #include <iostream>
 #include "Config.h"
+#include "DungeonNavigator.h"
+#include "AnticipatoryThreatValue.h"
 #include "NewRpgInfo.h"
+#include "PathfindingBotManager.h"
 #include "PlayerbotDungeonSuggestionMgr.h"
 #include "PlayerbotFactory.h"
 #include "Playerbots.h"
@@ -677,6 +680,47 @@ bool PlayerbotAIConfig::Initialize()
     excludedHunterPetFamilies.clear();
     LoadList<std::vector<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.ExcludedHunterPetFamilies", ""), excludedHunterPetFamilies);
 
+    // Group Coordination & Tank Lead System
+    dungeonNavigatorEnabled = sConfigMgr->GetOption<bool>("AiPlayerbot.DungeonNavigator.Enabled", true);
+    groupCoordinatorEnabled = sConfigMgr->GetOption<bool>("AiPlayerbot.GroupCoordinator.Enabled", true);
+    intentBroadcasterEnabled = sConfigMgr->GetOption<bool>("AiPlayerbot.IntentBroadcaster.Enabled", true);
+    anticipatoryThreatEnabled = sConfigMgr->GetOption<bool>("AiPlayerbot.AnticipatoryThreat.Enabled", true);
+    tankLeadEnabled = sConfigMgr->GetOption<bool>("AiPlayerbot.TankLead.Enabled", true);
+    decisionCacheMaxAgeMs = sConfigMgr->GetOption<uint32>("AiPlayerbot.DecisionCache.MaxAgeMs", 500);
+    interruptClaimDurationMs = sConfigMgr->GetOption<uint32>("AiPlayerbot.GroupCoordinator.InterruptClaimDurationMs", 3000);
+    tankLeadWaitForGroupDistance = sConfigMgr->GetOption<uint32>("AiPlayerbot.TankLead.WaitForGroupDistance", 40);
+    tankLeadManaBreakThreshold = sConfigMgr->GetOption<uint32>("AiPlayerbot.TankLead.ManaBreakThreshold", 30);
+
+    // PathfindingBot System - Autonomous Dungeon Route Learning
+    pathfindingBotEnabled = sConfigMgr->GetOption<bool>("AiPlayerbot.PathfindingBot.Enabled", true);
+    pathfindingMaxIterations = sConfigMgr->GetOption<uint32>("AiPlayerbot.PathfindingBot.MaxIterations", 10);
+    pathfindingStuckThresholdMs = sConfigMgr->GetOption<uint32>("AiPlayerbot.PathfindingBot.StuckThresholdMs", 10000);
+    pathfindingConvergenceIterations = sConfigMgr->GetOption<uint32>("AiPlayerbot.PathfindingBot.ConvergenceIterations", 3);
+    pathfindingConvergenceThreshold = sConfigMgr->GetOption<float>("AiPlayerbot.PathfindingBot.ConvergenceThreshold", 0.02f);
+    pathfindingAutoPromoteWaypoints = sConfigMgr->GetOption<bool>("AiPlayerbot.PathfindingBot.AutoPromoteWaypoints", false);
+    pathfindingMinConfidence = sConfigMgr->GetOption<float>("AiPlayerbot.PathfindingBot.MinConfidenceForPromotion", 0.8f);
+
+    // Initialize dungeon navigation system
+    if (dungeonNavigatorEnabled)
+    {
+        LOG_INFO("server.loading", "Initializing Dungeon Navigator...");
+        sDungeonNavigator->Initialize();
+    }
+
+    // Initialize anticipatory threat system
+    if (anticipatoryThreatEnabled)
+    {
+        LOG_INFO("server.loading", "Initializing Anticipatory Threat System...");
+        sAnticipatoryThreatManager->Initialize();
+    }
+
+    // Initialize pathfinding bot system
+    if (pathfindingBotEnabled)
+    {
+        LOG_INFO("server.loading", "Initializing PathfindingBot System...");
+        sPathfindingBot->Initialize();
+    }
+
     LOG_INFO("server.loading", "---------------------------------------");
     LOG_INFO("server.loading", "       mod-playerbots initialized      ");
     LOG_INFO("server.loading", "---------------------------------------");
@@ -965,3 +1009,5 @@ std::vector<std::vector<uint32>> PlayerbotAIConfig::ParseTempPetTalentsOrder(uin
 
     return orders;
 }
+
+

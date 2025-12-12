@@ -10,6 +10,22 @@
 
 class PlayerbotAI;
 
+/**
+ * DpsTargetValue - Intelligent DPS target selection
+ *
+ * Selection priority:
+ * 1. Raid target icons (skull, X, etc.)
+ * 2. Group coordinator focus target
+ * 3. Low HP targets (execute range for quick kills)
+ * 4. Targets near death threshold based on group DPS
+ * 5. Range and cleave efficiency considerations
+ *
+ * Features:
+ * - Smart target switching to quickly eliminate threats
+ * - Hysteresis to prevent excessive target swapping
+ * - Cleave awareness for multi-target efficiency
+ * - Role-specific considerations (caster, melee, combo)
+ */
 class DpsTargetValue : public RtiTargetValue
 {
 public:
@@ -19,6 +35,17 @@ public:
     }
 
     Unit* Calculate() override;
+
+private:
+    /**
+     * Check if target is in execute range (<20% health) and worth switching to
+     */
+    bool ShouldSwitchToLowHealthTarget(Unit* currentTarget, Unit* lowHealthTarget, float groupDps);
+
+    /**
+     * Calculate target switch score (higher = more valuable to switch)
+     */
+    float CalculateSwitchScore(Unit* target, Unit* currentTarget, float groupDps);
 };
 
 class DpsAoeTargetValue : public RtiTargetValue

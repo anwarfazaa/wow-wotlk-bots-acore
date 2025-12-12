@@ -446,6 +446,30 @@ public:
     bool IsRestrictedHealerDPSMap(uint32 mapId) const;
 
     std::vector<uint32> excludedHunterPetFamilies;
+
+    // =========================================================================
+    // Group Coordination & Tank Lead System
+    // =========================================================================
+    bool dungeonNavigatorEnabled;
+    bool groupCoordinatorEnabled;
+    bool intentBroadcasterEnabled;
+    bool anticipatoryThreatEnabled;
+    bool tankLeadEnabled;
+    uint32 decisionCacheMaxAgeMs;
+    uint32 interruptClaimDurationMs;
+    uint32 tankLeadWaitForGroupDistance;
+    uint32 tankLeadManaBreakThreshold;
+
+    // =========================================================================
+    // PathfindingBot System - Autonomous Dungeon Route Learning
+    // =========================================================================
+    bool pathfindingBotEnabled;
+    uint32 pathfindingMaxIterations;
+    uint32 pathfindingStuckThresholdMs;
+    uint32 pathfindingConvergenceIterations;
+    float pathfindingConvergenceThreshold;
+    bool pathfindingAutoPromoteWaypoints;
+    float pathfindingMinConfidence;
 };
 
 #define sPlayerbotAIConfig PlayerbotAIConfig::instance()

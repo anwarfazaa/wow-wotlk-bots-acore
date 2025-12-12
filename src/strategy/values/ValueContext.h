@@ -8,6 +8,7 @@
 
 #include "ActiveSpellValue.h"
 #include "AlwaysLootListValue.h"
+#include "AnticipatoryThreatValue.h"
 #include "AoeHealValues.h"
 #include "AoeValues.h"
 #include "AttackerCountValues.h"
@@ -312,6 +313,16 @@ public:
         creators["last flee angle"] = &ValueContext::last_flee_angle;
         creators["last flee timestamp"] = &ValueContext::last_flee_timestamp;
         creators["recently flee info"] = &ValueContext::recently_flee_info;
+
+        // Anticipatory threat system values
+        creators["incoming damage"] = &ValueContext::incoming_damage;
+        creators["active threats"] = &ValueContext::active_threats;
+        creators["threat prediction"] = &ValueContext::threat_prediction;
+        creators["should preposition"] = &ValueContext::should_preposition;
+        creators["preemptive heal targets"] = &ValueContext::preemptive_heal_targets;
+        creators["highest threat"] = &ValueContext::highest_threat;
+        creators["safe position"] = &ValueContext::safe_position;
+        creators["at dungeon waypoint"] = &ValueContext::at_dungeon_waypoint;
     }
 
 private:
@@ -562,6 +573,16 @@ private:
     {
         return new ManualSetValue<bool>(ai, false, "custom_glyphs");
     }
+
+    // Anticipatory threat system value factories
+    static UntypedValue* incoming_damage(PlayerbotAI* ai) { return new IncomingDamageValue(ai); }
+    static UntypedValue* active_threats(PlayerbotAI* ai) { return new ActiveThreatsValue(ai); }
+    static UntypedValue* threat_prediction(PlayerbotAI* ai) { return new ThreatPredictionValue(ai); }
+    static UntypedValue* should_preposition(PlayerbotAI* ai) { return new ShouldPrepositionValue(ai); }
+    static UntypedValue* preemptive_heal_targets(PlayerbotAI* ai) { return new PreemptiveHealTargetsValue(ai); }
+    static UntypedValue* highest_threat(PlayerbotAI* ai) { return new HighestThreatValue(ai); }
+    static UntypedValue* safe_position(PlayerbotAI* ai) { return new SafePositionValue(ai); }
+    static UntypedValue* at_dungeon_waypoint(PlayerbotAI* ai) { return new AtDungeonWaypointValue(ai); }
 };
 
 #endif
