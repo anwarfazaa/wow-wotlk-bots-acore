@@ -1,112 +1,368 @@
-<p align="center">
-    <a href="https://github.com/mod-playerbots/mod-playerbots/blob/master/README.md">English</a>
-    |
-    <a href="https://github.com/mod-playerbots/mod-playerbots/blob/master/README_CN.md">中文</a>
-    |
-    <a href="https://github.com/mod-playerbots/mod-playerbots/blob/master/README_ES.md">Español</a>
-</p>
+# Enhanced Playerbots Features
 
+This document describes the enhanced features added to this fork of [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots).
 
-<div align="center">
-  <img src="icon.png" alt="Playerbots Icon" width="700px">
-</div>
+## Table of Contents
 
-<div align="center">
-    <img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/macos_build.yml/badge.svg">
-    <img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/core_build.yml/badge.svg">
-    <img src="https://github.com/mod-playerbots/mod-playerbots/actions/workflows/windows_build.yml/badge.svg">
-</div>
+- [Overview](#overview)
+- [New Systems](#new-systems)
+  - [Dungeon Navigator](#dungeon-navigator)
+  - [Tank Lead Strategy](#tank-lead-strategy)
+  - [Dungeon Chatter](#dungeon-chatter)
+  - [Pathfinding Bot](#pathfinding-bot)
+  - [Follow After Teleport Fix](#follow-after-teleport-fix)
+- [Configuration](#configuration)
+- [Database Tables](#database-tables)
+- [Credits](#credits)
 
-# Playerbots Module
-`mod-playerbots` is an [AzerothCore](https://www.azerothcore.org/) module that adds player-like bots to a server. The project is based off [IKE3's Playerbots](https://github.com/ike3/mangosbot).
+---
 
-Features include:
+## Overview
 
-- The ability to log in alt characters as bots, allowing players to interact with their other characters, form parties, level up, and more
-- Random bots that wander through the world, complete quests, and otherwise behave like players, simulating the MMO experience
-- Bots capable of running most raids and battlegrounds
-- Highly configurable settings to define how bots behave
-- Excellent performance, even when running thousands of bots
+This fork extends the original mod-playerbots with several new systems designed to improve bot behavior in dungeons and group content:
 
-We also have a **[Discord server](https://discord.gg/NQm5QShwf9)** where you can discuss the project, ask questions, and get involved in the community!
+- **Intelligent dungeon navigation** using waypoint-based pathfinding
+- **Tank-led dungeon runs** where tank bots lead the group through dungeons
+- **Humorous dungeon chatter** for a more immersive experience
+- **Autonomous pathfinding bot** for learning dungeon routes
+- **Improved follow behavior** after teleporting to dungeons
 
-## Installation
+---
 
-Supported platforms are Ubuntu, Windows, and macOS. Other Linux distributions may work, but may not receive support. 
+## New Systems
 
-**All `mod-playerbots` installations require a custom branch of AzerothCore: [mod-playerbots/azerothcore-wotlk/tree/Playerbot](https://github.com/mod-playerbots/azerothcore-wotlk/tree/Playerbot).** This branch allows the `mod-playerbots` module to build and function. Updates from the upstream are implemented regularly to this branch. Instructions for installing this required branch and this module are provided below.
+### Dungeon Navigator
 
-### Cloning the Repositories
+The Dungeon Navigator system provides waypoint-based navigation for bots in dungeons.
 
-To install both the required branch of AzerothCore and the `mod-playerbots` module from source, run the following:
+**Features:**
+- Pre-defined waypoints for dungeon paths
+- Boss and trash pack location tracking
+- Safe spot identification for resting
+- Progress tracking per group
+- Automatic path following
 
-```bash
-git clone https://github.com/mod-playerbots/azerothcore-wotlk.git --branch=Playerbot
-cd azerothcore-wotlk/modules
-git clone https://github.com/mod-playerbots/mod-playerbots.git --branch=master
+**Files:**
+- `src/strategy/dungeon/DungeonNavigator.h`
+- `src/strategy/dungeon/DungeonNavigator.cpp`
+
+---
+
+### Tank Lead Strategy
+
+Allows tank bots to lead groups through dungeons autonomously.
+
+**Features:**
+- Tank bots navigate using dungeon waypoints
+- Wait for group members before proceeding
+- Announce pulls and boss encounters
+- Mana break detection for healers
+- Human player handoff when waypoints aren't available
+
+**Triggers:**
+| Trigger | Description |
+|---------|-------------|
+| `tank lead enabled` | Check if tank lead strategy should be active |
+| `at dungeon waypoint` | Tank is at current waypoint |
+| `should move to next waypoint` | Tank should proceed to next waypoint |
+| `group not ready` | Group members not ready to proceed |
+| `healer needs mana break` | Healer mana below threshold |
+| `boss ahead` | Boss encounter at next waypoint |
+| `trash pack ahead` | Trash pack detected ahead |
+| `no dungeon path` | No waypoints available for current dungeon |
+
+**Actions:**
+| Action | Description |
+|--------|-------------|
+| `move to next waypoint` | Navigate to next dungeon waypoint |
+| `wait for group` | Wait for group members to catch up |
+| `announce pull` | Announce upcoming pull |
+| `announce boss` | Announce boss encounter |
+| `request human lead` | Ask human player to lead (no waypoints) |
+| `follow human leader` | Follow human player through dungeon |
+
+**Files:**
+- `src/strategy/dungeon/TankLeadStrategy.h`
+- `src/strategy/dungeon/TankLeadStrategy.cpp`
+- `src/strategy/dungeon/TankLeadActions.h`
+- `src/strategy/dungeon/TankLeadActions.cpp`
+- `src/strategy/dungeon/TankLeadTriggers.h`
+- `src/strategy/dungeon/TankLeadTriggers.cpp`
+- `src/strategy/dungeon/TankLeadActionContext.h`
+- `src/strategy/dungeon/TankLeadTriggerContext.h`
+
+---
+
+### Dungeon Chatter
+
+Adds humorous dialogue for bots during dungeon runs, making the experience more immersive and entertaining.
+
+**Chatter Categories:**
+| Category | When Triggered |
+|----------|----------------|
+| `ENTERING_DUNGEON` | When first entering a dungeon |
+| `BEFORE_PULL` | Before pulling trash/boss |
+| `AFTER_KILL` | After killing mobs |
+| `BOSS_PULL` | Before boss fights |
+| `BOSS_KILL` | After killing a boss |
+| `WIPE` | After a wipe |
+| `LOW_HEALTH` | When health gets low |
+| `LOW_MANA` | When healer/caster mana is low |
+| `WAITING` | While waiting for group |
+| `RANDOM` | Random chatter during downtime |
+| `LOOT` | When looting |
+| `STUCK` | When getting stuck |
+| `DEATH` | When dying |
+| `RESURRECT` | When resurrected |
+
+**Configuration:**
+- Default chance: 15%
+- Minimum cooldown: 30 seconds
+- Maximum cooldown: 2 minutes
+
+**Files:**
+- `src/strategy/dungeon/DungeonChatter.h`
+- `src/strategy/dungeon/DungeonChatter.cpp`
+
+---
+
+### Pathfinding Bot
+
+An autonomous bot system that explores dungeons solo, learns optimal routes through iterative runs, and generates waypoint data for the Dungeon Navigator.
+
+**Features:**
+- Frontier-based exploration algorithm
+- Multiple iteration learning with convergence detection
+- Stuck recovery with jump mechanics
+- Automatic waypoint generation from learned paths
+- Boss and trash pack location recording
+
+**States:**
+```
+IDLE -> ENTERING -> EXPLORING -> COMBAT -> BOSS_ENCOUNTER
+                       |            |
+                       v            v
+               STUCK_RECOVERY  ANALYZING -> COMPLETE
+                                   |
+                                   v
+                              RESETTING (next iteration)
 ```
 
-For more information, refer to the [AzerothCore Installation Guide](https://www.azerothcore.org/wiki/installation) and [Installing a Module](https://www.azerothcore.org/wiki/installing-a-module) pages.
-
-### Docker Installation
-
-Docker installations are considered experimental (unofficial with limited support), and previous Docker experience is recommended. To install `mod-playerbots` on Docker, first clone the required branch of AzerothCore and this module:
-
-```bash
-git clone https://github.com/mod-playerbots/azerothcore-wotlk.git --branch=Playerbot
-cd azerothcore-wotlk/modules
-git clone https://github.com/mod-playerbots/mod-playerbots.git --branch=master
+**GM Commands:**
+```
+.playerbot pathfind start <mapId>    - Start pathfinding a dungeon
+.playerbot pathfind stop             - Stop current pathfinding
+.playerbot pathfind status           - Show current state/progress
+.playerbot pathfind promote <mapId>  - Promote waypoint candidates
+.playerbot pathfind clear <mapId>    - Clear learned data for dungeon
 ```
 
-Afterwards, create a `docker-compose.override.yml` file in the `azerothcore-wotlk` directory. This override file allows for mounting the modules directory to the `ac-worldserver` service which is required for it to run. Put the following inside and save:
+**Files:**
+- `src/strategy/pathfinding/PathfindingBotManager.h`
+- `src/strategy/pathfinding/PathfindingBotManager.cpp`
+- `src/strategy/pathfinding/ExplorationEngine.h`
+- `src/strategy/pathfinding/ExplorationEngine.cpp`
+- `src/strategy/pathfinding/PathLearner.h`
+- `src/strategy/pathfinding/PathLearner.cpp`
+- `src/strategy/pathfinding/StuckRecoverySystem.h`
+- `src/strategy/pathfinding/StuckRecoverySystem.cpp`
+- `src/strategy/pathfinding/WaypointGenerator.h`
+- `src/strategy/pathfinding/WaypointGenerator.cpp`
 
-```yml
-services:
-  ac-worldserver:
-    volumes:
-      - ./modules:/azerothcore/modules:ro
+---
+
+### Follow After Teleport Fix
+
+Fixes an issue where bots would stop following their leader after teleporting to dungeons.
+
+**Problem:**
+The original `TeleportAction` set `-follow,+stay` when teleporting via game objects, permanently disabling follow behavior.
+
+**Solution:**
+- Removed the problematic strategy change from `TeleportAction`
+- Added `ResumeFollowAfterTeleportTrigger` to detect when bots should resume following
+- Added `ResumeFollowAfterTeleportAction` to restore follow behavior
+- Clears stale movement state to prevent priority conflicts
+
+**Files Modified:**
+- `src/strategy/actions/TeleportAction.cpp`
+- `src/strategy/actions/FollowActions.h`
+- `src/strategy/actions/FollowActions.cpp`
+- `src/strategy/triggers/GenericTriggers.h`
+- `src/strategy/triggers/GenericTriggers.cpp`
+- `src/strategy/generic/NonCombatStrategy.cpp`
+
+---
+
+## Configuration
+
+Add the following options to your `playerbots.conf` file:
+
+```ini
+###################################
+# DUNGEON NAVIGATION SETTINGS     #
+###################################
+
+# Enable dungeon navigator system
+# Default: 1
+AiPlayerbot.DungeonNavigator.Enabled = 1
+
+###################################
+# TANK LEAD SETTINGS              #
+###################################
+
+# Enable tank lead strategy for dungeons
+# Default: 1
+AiPlayerbot.TankLead.Enabled = 1
+
+# Distance at which tank waits for group members (yards)
+# Default: 40
+AiPlayerbot.TankLead.WaitForGroupDistance = 40
+
+# Mana percentage threshold for healer mana breaks
+# Default: 30
+AiPlayerbot.TankLead.ManaBreakThreshold = 30
+
+###################################
+# PATHFINDING BOT SETTINGS        #
+###################################
+
+# Enable pathfinding bot system
+# Default: 1
+AiPlayerbot.PathfindingBot.Enabled = 1
+
+# Maximum iterations for route learning
+# Default: 10
+AiPlayerbot.PathfindingBot.MaxIterations = 10
+
+# Time in ms before considering bot stuck
+# Default: 10000
+AiPlayerbot.PathfindingBot.StuckThresholdMs = 10000
+
+# Iterations without improvement before convergence
+# Default: 3
+AiPlayerbot.PathfindingBot.ConvergenceIterations = 3
+
+# Score improvement threshold for convergence (0.02 = 2%)
+# Default: 0.02
+AiPlayerbot.PathfindingBot.ConvergenceThreshold = 0.02
+
+# Automatically promote learned waypoints to main table
+# Default: 0
+AiPlayerbot.PathfindingBot.AutoPromoteWaypoints = 0
+
+# Minimum confidence score for waypoint promotion (0-1)
+# Default: 0.8
+AiPlayerbot.PathfindingBot.MinConfidenceForPromotion = 0.8
 ```
 
-Additionally, this override file can be used to set custom configuration settings for `ac-worldserver` and any modules you install as environment variables:
+---
 
-```yml
-services:
-  ac-worldserver:
-    environment:
-      AC_RATE_XP_KILL: "1"
-      AC_AI_PLAYERBOT_RANDOM_BOT_AUTOLOGIN: "1"
-    volumes:
-      - ./modules:/azerothcore/modules:ro
+## Database Tables
+
+### playerbots_dungeon_waypoints
+
+Stores predefined waypoints for dungeon navigation.
+
+```sql
+CREATE TABLE `playerbots_dungeon_waypoints` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `map_id` MEDIUMINT NOT NULL,
+    `dungeon_name` VARCHAR(64),
+    `waypoint_index` SMALLINT NOT NULL,
+    `x` FLOAT NOT NULL,
+    `y` FLOAT NOT NULL,
+    `z` FLOAT NOT NULL,
+    `orientation` FLOAT DEFAULT 0,
+    `boss_id` INT DEFAULT 0,
+    `trash_pack_id` SMALLINT DEFAULT 0,
+    `requires_clear` TINYINT DEFAULT 0,
+    `safe_radius` FLOAT DEFAULT 5.0,
+    `wait_for_group` TINYINT DEFAULT 0,
+    `is_safe_spot` TINYINT DEFAULT 0,
+    `description` VARCHAR(255),
+    INDEX `idx_map_waypoint` (`map_id`, `waypoint_index`)
+);
 ```
 
-For example, to double the experience gain rate per kill, take the setting `Rate.XP.Kill = 1` from [woldserver.conf](https://github.com/mod-playerbots/azerothcore-wotlk/blob/Playerbot/src/server/apps/worldserver/worldserver.conf.dist), convert it to an environment variable, and change it to the desired setting in the override file to get `AC_RATE_XP_KILL: "2"`. If you wanted to disable random bots from logging in automatically, take the `AiPlayerbot.RandomBotAutologin = 1` setting from [playerbots.conf](https://github.com/mod-playerbots/mod-playerbots/blob/master/conf/playerbots.conf.dist) and do the same to get `AC_AI_PLAYERBOT_RANDOM_BOT_AUTOLOGIN: "0"`. For more information on how to configure Azerothcore, Playerbots, and other module settings as environment variables in Docker Compose, see the "Configuring AzerothCore in Containers" section in the [Install With Docker](https://www.azerothcore.org/wiki/install-with-docker) guide.
+### playerbots_dungeon_progress
 
-Before building, consider setting the database password. One way to do this is to create a `.env` file in the root `azerothcore-wotlk` directory using the [template](https://github.com/mod-playerbots/azerothcore-wotlk/blob/Playerbot/conf/dist/env.docker). This file also allows you to set the user and group Docker uses for the services in case you run into any permissions issues, which are the most common cause for Docker installation problems.
+Tracks group progress through dungeons.
 
-Use `docker compose up -d --build` to build and run the server. For more information, including how to create an account and taking backups, refer to the [Install With Docker](https://www.azerothcore.org/wiki/install-with-docker) page.
+```sql
+CREATE TABLE `playerbots_dungeon_progress` (
+    `group_id` INT NOT NULL,
+    `map_id` MEDIUMINT NOT NULL,
+    `current_waypoint` SMALLINT DEFAULT 0,
+    `bosses_killed` VARCHAR(255) DEFAULT '',
+    `trash_cleared` VARCHAR(255) DEFAULT '',
+    `last_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`group_id`, `map_id`)
+);
+```
 
-## Documentation
+### playerbots_pathfinding_iterations
 
-The [Playerbots Wiki](https://github.com/mod-playerbots/mod-playerbots/wiki) contains an extensive overview of AddOns, commands, raids with programmed bot strategies, and recommended performance configurations. Please note that documentation may be incomplete or out-of-date in some sections, and contributions are welcome.
+Stores learning data from pathfinding bot runs.
 
-Bots are controlled via chat commands. For larger bot groups, this can be cumbersome. Because of this, community members have developed client AddOns to allow controlling bots through the in-game UI. We recommend you check out their projects listed in the [AddOns and Submodules](https://github.com/mod-playerbots/mod-playerbots/wiki/Playerbot-Addons-and-Sub%E2%80%90Modules) page.
+```sql
+CREATE TABLE `playerbots_pathfinding_iterations` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `map_id` MEDIUMINT NOT NULL,
+    `bot_guid` BIGINT NOT NULL,
+    `iteration` SMALLINT NOT NULL,
+    `duration_ms` INT,
+    `death_count` SMALLINT DEFAULT 0,
+    `stuck_count` SMALLINT DEFAULT 0,
+    `total_distance` FLOAT,
+    `score` FLOAT,
+    `path_json` MEDIUMTEXT,
+    `bosses_killed` VARCHAR(255),
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_map_iteration` (`map_id`, `iteration`)
+);
+```
 
-## Contributing
+### playerbots_pathfinding_waypoint_candidates
 
-This project is still under development. We encourage anyone to make contributions, anything from pull requests to reporting issues. If you encounter any errors or experience crashes, we encourage you [report them as GitHub issues](https://github.com/mod-playerbots/mod-playerbots/issues/new?template=bug_report.md). Your valuable feedback will help us improve this project collaboratively.
+Stores waypoint candidates generated by the pathfinding bot.
 
-If you make coding contributions, `mod-playerbots` complies with the [C++ Code Standards](https://www.azerothcore.org/wiki/cpp-code-standards) established by AzerothCore. Each Pull Request must include all test scenarios the author performed, along with their results, to demonstrate that the changes were properly verified.
+```sql
+CREATE TABLE `playerbots_pathfinding_waypoint_candidates` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `map_id` MEDIUMINT NOT NULL,
+    `waypoint_index` SMALLINT NOT NULL,
+    `x` FLOAT NOT NULL,
+    `y` FLOAT NOT NULL,
+    `z` FLOAT NOT NULL,
+    `orientation` FLOAT DEFAULT 0,
+    `waypoint_type` TINYINT DEFAULT 0,
+    `boss_entry` INT DEFAULT 0,
+    `safe_radius` FLOAT DEFAULT 5.0,
+    `confidence` FLOAT DEFAULT 0,
+    `times_visited` INT DEFAULT 0,
+    `promoted` TINYINT DEFAULT 0,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX `idx_map_waypoint` (`map_id`, `waypoint_index`)
+);
+```
 
-We recommend joining the [Discord server](https://discord.gg/NQm5QShwf9) to make your contributions to the project easier, as a lot of active support is carried out through this server.
+---
 
-Please click on the "⭐" button to stay up to date and help us gain more visibility on GitHub!
+## Credits
 
-## Acknowledgements
+This fork is based on the original [mod-playerbots](https://github.com/mod-playerbots/mod-playerbots) project.
 
-`mod-playerbots` is based on [ZhengPeiRu21/mod-playerbots](https://github.com/ZhengPeiRu21/mod-playerbots) and [celguar/mangosbot-bots](https://github.com/celguar/mangosbot-bots). We extend our gratitude to [@ZhengPeiRu21](https://github.com/ZhengPeiRu21) and [@celguar](https://github.com/celguar) for their continued efforts in maintaining the module.
+**Original Project:**
+- Repository: https://github.com/mod-playerbots/mod-playerbots
+- Based on [IKE3's Playerbots](https://github.com/ike3/mangosbot)
+- Special thanks to [@ZhengPeiRu21](https://github.com/ZhengPeiRu21) and [@celguar](https://github.com/celguar)
 
-Also, a thank you to the many contributors who've helped build this project:
+**Enhanced Features by:**
+- Dungeon Navigator System
+- Tank Lead Strategy
+- Dungeon Chatter System
+- Pathfinding Bot System
+- Follow After Teleport Fix
 
-<a href="https://github.com/mod-playerbots/mod-playerbots/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=mod-playerbots/mod-playerbots" />
-</a>
+For the original installation instructions and documentation, please refer to the [main README](README.md) and the [Playerbots Wiki](https://github.com/mod-playerbots/mod-playerbots/wiki).

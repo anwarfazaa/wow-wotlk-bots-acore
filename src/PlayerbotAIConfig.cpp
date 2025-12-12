@@ -711,7 +711,7 @@ bool PlayerbotAIConfig::Initialize()
     if (anticipatoryThreatEnabled)
     {
         LOG_INFO("server.loading", "Initializing Anticipatory Threat System...");
-        sAnticipatoryThreatManager->Initialize();
+        sAnticipatoryThreat->Initialize();
     }
 
     // Initialize pathfinding bot system
