@@ -7,8 +7,8 @@
 #define _PLAYERBOT_PATHFINDINGBOTCONTEXT_H
 
 #include "Common.h"
-#include "Duration.h"
 #include "Position.h"
+#include "Timer.h"
 #include <vector>
 #include <string>
 #include <unordered_map>
