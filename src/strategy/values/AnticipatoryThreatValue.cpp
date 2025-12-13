@@ -365,7 +365,7 @@ void ActiveThreatsValue::ScanEnemyCasts(std::vector<ActiveThreat>& threats)
 
     uint32 now = getMSTime();
 
-    for (auto& ref : bot->getHostileRefManager())
+    for (auto& ref : bot->getHostileRefMgr())
     {
         Unit* enemy = ref.GetSource()->GetOwner();
         if (!enemy || !enemy->IsAlive())

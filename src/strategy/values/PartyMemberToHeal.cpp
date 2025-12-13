@@ -209,7 +209,7 @@ uint32 PartyMemberToHeal::GetIncomingDamage(Unit* unit)
     uint32 totalDamage = 0;
 
     // Check for active casts targeting this unit
-    for (auto& ref : unit->getHostileRefManager())
+    for (auto& ref : unit->getHostileRefMgr())
     {
         Unit* enemy = ref.GetSource()->GetOwner();
         if (!enemy || !enemy->IsAlive())
