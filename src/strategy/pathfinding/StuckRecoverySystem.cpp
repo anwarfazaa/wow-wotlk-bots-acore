@@ -404,8 +404,10 @@ bool StuckRecoverySystem::IsValidPosition(Player* bot, const Position& pos) cons
     if (!map)
         return false;
 
-    // Check if position is within map bounds
-    if (!map->IsValidMapCoord(pos.GetPositionX(), pos.GetPositionY()))
+    // Check if position is within reasonable bounds
+    float x = pos.GetPositionX();
+    float y = pos.GetPositionY();
+    if (x < -50000.0f || x > 50000.0f || y < -50000.0f || y > 50000.0f)
         return false;
 
     // Check ground height
