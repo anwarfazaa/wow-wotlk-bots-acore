@@ -868,7 +868,7 @@ Player* RequestHumanLeadAction::FindHumanLeader()
     {
         // Solo bot - check if master is human
         Player* master = botAI->GetMaster();
-        if (master && !master->IsBot())
+        if (master && !master->GetSession()->IsBot())
             return master;
         return nullptr;
     }
@@ -877,7 +877,7 @@ Player* RequestHumanLeadAction::FindHumanLeader()
     for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
     {
         Player* member = ref->GetSource();
-        if (member && !member->IsBot() && member->IsAlive())
+        if (member && !member->GetSession()->IsBot() && member->IsAlive())
             return member;
     }
 
@@ -966,21 +966,21 @@ Player* FollowHumanLeaderAction::FindHumanLeader()
     {
         // Solo bot - check if master is human
         Player* master = botAI->GetMaster();
-        if (master && !master->IsBot())
+        if (master && !master->GetSession()->IsBot())
             return master;
         return nullptr;
     }
 
     // Prefer group leader if human
     Player* leader = ObjectAccessor::FindPlayer(group->GetLeaderGUID());
-    if (leader && !leader->IsBot() && leader->IsAlive() && leader->GetMapId() == bot->GetMapId())
+    if (leader && !leader->GetSession()->IsBot() && leader->IsAlive() && leader->GetMapId() == bot->GetMapId())
         return leader;
 
     // Otherwise find any human in the group
     for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
     {
         Player* member = ref->GetSource();
-        if (member && !member->IsBot() && member->IsAlive() && member->GetMapId() == bot->GetMapId())
+        if (member && !member->GetSession()->IsBot() && member->IsAlive() && member->GetMapId() == bot->GetMapId())
             return member;
     }
 
