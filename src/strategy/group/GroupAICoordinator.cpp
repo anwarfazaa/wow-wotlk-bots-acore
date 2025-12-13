@@ -5,6 +5,7 @@
 
 #include "GroupAICoordinator.h"
 #include "IntentBroadcaster.h"
+#include "AiFactory.h"
 #include "Group.h"
 #include "Player.h"
 #include "PlayerbotAI.h"
@@ -12,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 
 // ============================================================================
 // GroupCoordinatorData Implementation
@@ -927,23 +929,23 @@ GroupRole GroupAICoordinator::DetermineRole(Player* player)
     if (ai)
         return DetermineRole(ai);
 
-    // For real players, use spec detection
+    // For real players, use spec detection via AiFactory
+    int spec = AiFactory::GetPlayerSpecTab(player);
     uint8 cls = player->getClass();
-    uint32 spec = player->GetPrimaryTalentTree(player->GetActiveSpec());
 
     switch (cls)
     {
         case CLASS_WARRIOR:
             // Protection = tank, others = melee DPS
-            if (spec == 2)  // Protection
+            if (spec == WARRIOR_TAB_PROTECTION)
                 return GroupRole::TANK;
             return GroupRole::MELEE_DPS;
 
         case CLASS_PALADIN:
             // Protection = tank, Holy = healer, Retribution = melee DPS
-            if (spec == 0)  // Holy
+            if (spec == PALADIN_TAB_HOLY)
                 return GroupRole::HEALER;
-            if (spec == 1)  // Protection
+            if (spec == PALADIN_TAB_PROTECTION)
                 return GroupRole::TANK;
             return GroupRole::MELEE_DPS;
 
@@ -955,15 +957,15 @@ GroupRole GroupAICoordinator::DetermineRole(Player* player)
 
         case CLASS_PRIEST:
             // Holy/Disc = healer, Shadow = ranged DPS
-            if (spec == 2)  // Shadow
+            if (spec == PRIEST_TAB_SHADOW)
                 return GroupRole::RANGED_DPS;
             return GroupRole::HEALER;
 
         case CLASS_SHAMAN:
             // Restoration = healer, Elemental = ranged, Enhancement = melee
-            if (spec == 2)  // Restoration
+            if (spec == SHAMAN_TAB_RESTORATION)
                 return GroupRole::HEALER;
-            if (spec == 0)  // Elemental
+            if (spec == SHAMAN_TAB_ELEMENTAL)
                 return GroupRole::RANGED_DPS;
             return GroupRole::MELEE_DPS;
 
@@ -973,16 +975,18 @@ GroupRole GroupAICoordinator::DetermineRole(Player* player)
 
         case CLASS_DRUID:
             // Restoration = healer, Balance = ranged, Feral = melee/tank
-            if (spec == 2)  // Restoration
+            if (spec == DRUID_TAB_RESTORATION)
                 return GroupRole::HEALER;
-            if (spec == 0)  // Balance
+            if (spec == DRUID_TAB_BALANCE)
                 return GroupRole::RANGED_DPS;
-            // Feral could be tank or DPS - check for tank stance/form
+            // Feral could be tank or DPS - check for bear form
+            if (player->GetShapeshiftForm() == FORM_BEAR || player->GetShapeshiftForm() == FORM_DIREBEAR)
+                return GroupRole::TANK;
             return GroupRole::MELEE_DPS;
 
         case CLASS_DEATH_KNIGHT:
             // Blood = tank, others = melee DPS
-            if (spec == 0)  // Blood
+            if (spec == DEATHKNIGHT_TAB_BLOOD)
                 return GroupRole::TANK;
             return GroupRole::MELEE_DPS;
 

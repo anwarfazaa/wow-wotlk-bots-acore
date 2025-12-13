@@ -6,6 +6,7 @@
 #include "IntentBroadcaster.h"
 
 #include <algorithm>
+#include <mutex>
 
 // =========================================================================
 // Key Generation
