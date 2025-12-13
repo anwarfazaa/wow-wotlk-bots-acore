@@ -7,12 +7,13 @@
 #include "DatabaseEnv.h"
 #include "Log.h"
 #include "Map.h"
+#include "QueryResult.h"
 #include "MotionMaster.h"
-#include "MovementDefines.h"
 #include "Player.h"
 #include "Playerbots.h"
 #include "PlayerbotAI.h"
 #include <cmath>
+#include <mutex>
 #include <random>
 
 StuckRecoverySystem::StuckRecoverySystem() = default;

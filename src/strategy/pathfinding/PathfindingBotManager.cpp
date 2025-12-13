@@ -16,7 +16,9 @@
 #include "Playerbots.h"
 #include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
+#include "QueryResult.h"
 #include "WorldSession.h"
+#include <mutex>
 #include <sstream>
 
 PathfindingBotManager* PathfindingBotManager::instance()

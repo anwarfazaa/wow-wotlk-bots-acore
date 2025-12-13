@@ -7,6 +7,7 @@
 #include "Log.h"
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 #include <numeric>
 
 PathLearner::PathLearner() = default;
