@@ -9,6 +9,7 @@
 #include "Playerbots.h"
 #include "ServerFacade.h"
 #include "Spell.h"
+#include "SpellAuraEffects.h"
 
 // Static member initialization
 std::unordered_map<uint64, HealthTrendData> PartyMemberToHeal::s_healthTrends;
