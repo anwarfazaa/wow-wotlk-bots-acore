@@ -25,7 +25,7 @@ class TankLeadStrategy : public Strategy
 public:
     TankLeadStrategy(PlayerbotAI* ai);
 
-    std::string getName() override { return "tank lead"; }
+    std::string const getName() override { return "tank lead"; }
     uint32 GetType() const override { return STRATEGY_TYPE_TANK; }
 
 protected:
@@ -41,7 +41,7 @@ class TankLeadNonCombatStrategy : public Strategy
 public:
     TankLeadNonCombatStrategy(PlayerbotAI* ai);
 
-    std::string getName() override { return "tank lead nc"; }
+    std::string const getName() override { return "tank lead nc"; }
     uint32 GetType() const override { return STRATEGY_TYPE_NONCOMBAT; }
 
 protected:
@@ -56,7 +56,7 @@ class DungeonProgressStrategy : public Strategy
 public:
     DungeonProgressStrategy(PlayerbotAI* ai);
 
-    std::string getName() override { return "dungeon progress"; }
+    std::string const getName() override { return "dungeon progress"; }
     uint32 GetType() const override { return STRATEGY_TYPE_NONCOMBAT; }
 
 protected:
