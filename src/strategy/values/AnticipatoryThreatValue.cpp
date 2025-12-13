@@ -250,7 +250,7 @@ uint32 IncomingDamageValue::CalculateFromActiveCasts()
     uint32 totalDamage = 0;
 
     // Check enemies targeting us that are casting
-    for (auto& ref : bot->getHostileRefManager())
+    for (auto& ref : bot->getHostileRefMgr())
     {
         Unit* enemy = ref.GetSource()->GetOwner();
         if (!enemy || !enemy->IsAlive())
