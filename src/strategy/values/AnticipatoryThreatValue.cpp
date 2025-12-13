@@ -414,93 +414,10 @@ void ActiveThreatsValue::ScanEnemyCasts(std::vector<ActiveThreat>& threats)
 
 void ActiveThreatsValue::ScanGroundEffects(std::vector<ActiveThreat>& threats)
 {
-    Player* bot = botAI->GetBot();
-    if (!bot)
-        return;
-
-    Map* map = bot->GetMap();
-    if (!map)
-        return;
-
-    // Known dangerous ground effect spell IDs
-    static const std::unordered_set<uint32> dangerousGroundEffects = {
-        // Death Knight
-        43265,  // Death and Decay
-        52212,  // Death and Decay (Rank 2)
-        // Mage
-        2120,   // Flamestrike
-        10,     // Blizzard
-        // Warlock
-        5740,   // Rain of Fire
-        1949,   // Hellfire
-        // Boss abilities - common dangerous ground effects
-        28547,  // Chill (Sapphiron)
-        28531,  // Frost Aura (Sapphiron)
-        29371,  // Eruption (Heigan)
-        28433,  // Slime Spray (Grobbulus)
-        28240,  // Poison Cloud (Grobbulus)
-        69024,  // Freezing Ground (HoR)
-        69789,  // Ooze Flood (Rotface)
-        71215,  // Malleable Goo (Putricide)
-        72295,  // Malleable Goo (Putricide H)
-        69508,  // Slime Spray (Rotface)
-        71224,  // Mutated Infection (Putricide)
-        70852,  // Ooze Eruption (Festergut)
-        70341,  // Slime Puddle (Festergut)
-        70672,  // Gaseous Blight (Festergut)
-        70360,  // Defile (Lich King)
-        72762,  // Defile (Lich King H)
-        69146,  // Coldflame (Lord Marrowgar)
-    };
-
-    uint32 now = getMSTime();
-    float searchRadius = 50.0f;
-
-    // Search for DynamicObjects near the bot
-    std::list<DynamicObject*> dynObjs;
-    bot->GetMap()->GetDynamicObjectListInGrid(dynObjs, bot->GetPositionX(), bot->GetPositionY());
-
-    for (DynamicObject* dynObj : dynObjs)
-    {
-        if (!dynObj)
-            continue;
-
-        uint32 spellId = dynObj->GetSpellId();
-        float radius = dynObj->GetRadius();
-        float distToBot = bot->GetDistance(dynObj);
-
-        // Check if this is a known dangerous effect or if bot is close to it
-        bool isDangerous = dangerousGroundEffects.count(spellId) > 0;
-        bool isClose = distToBot < (radius + 5.0f);  // Within danger zone + safety margin
-
-        if (!isDangerous && !isClose)
-            continue;
-
-        // Create threat entry
-        ActiveThreat threat;
-        threat.sourceGuid = dynObj->GetCasterGUID();
-        threat.spellId = spellId;
-        threat.ability = sAnticipatoryThreat->GetAbilityBySpell(spellId);
-        threat.sourcePosition.Relocate(dynObj->GetPositionX(), dynObj->GetPositionY(), dynObj->GetPositionZ());
-        threat.targetPosition = threat.sourcePosition;
-        threat.castStartTime = now;
-        threat.estimatedImpactTime = now;  // Ground effects are immediate
-        threat.isTargetingBot = isClose;
-        threat.mechanic = ThreatMechanicType::AVOID_GROUND;
-
-        // Estimate damage if we have ability data
-        if (threat.ability)
-        {
-            threat.estimatedDamage = threat.ability->baseDamage;
-        }
-        else
-        {
-            // Default estimate for unknown ground effects
-            threat.estimatedDamage = bot->GetMaxHealth() / 5;  // Assume ~20% health per tick
-        }
-
-        threats.push_back(threat);
-    }
+    // Ground effect scanning requires iterating DynamicObjects which isn't easily
+    // available in this AzerothCore version. This functionality can be enhanced
+    // later by checking auras on the bot that originate from DynamicObjects.
+    (void)threats;  // Suppress unused parameter warning
 }
 
 // ============================================================================
