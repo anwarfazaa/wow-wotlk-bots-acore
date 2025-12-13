@@ -7,6 +7,7 @@
 #define _PLAYERBOT_PATHLEARNER_H
 
 #include "PathfindingBotContext.h"
+#include <shared_mutex>
 #include <vector>
 #include <unordered_map>
 
