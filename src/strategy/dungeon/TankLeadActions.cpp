@@ -1006,12 +1006,12 @@ bool DungeonChatterAction::Execute(Event event)
     if (group)
     {
         // Use party chat
-        botAI->Say(chatter, CHAT_MSG_PARTY);
+        botAI->SayToParty(chatter);
     }
     else
     {
         // Use say
-        botAI->Say(chatter, CHAT_MSG_SAY);
+        botAI->Say(chatter);
     }
 
     // Record the chatter to prevent spam
