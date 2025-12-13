@@ -7,6 +7,7 @@
 #define _PLAYERBOT_STUCKRECOVERYSYSTEM_H
 
 #include "PathfindingBotContext.h"
+#include <shared_mutex>
 #include <vector>
 
 class Player;
