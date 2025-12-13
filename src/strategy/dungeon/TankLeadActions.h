@@ -234,8 +234,8 @@ private:
 class DungeonChatterAction : public Action
 {
 public:
-    DungeonChatterAction(PlayerbotAI* ai, ChatterCategory category = ChatterCategory::RANDOM)
-        : Action(ai, "dungeon chatter"), m_category(category) {}
+    DungeonChatterAction(PlayerbotAI* ai, ChatterCategory category = ChatterCategory::RANDOM, std::string const& actionName = "dungeon chatter")
+        : Action(ai, actionName), m_category(category) {}
     bool Execute(Event event) override;
     bool isUseful() override;
 
@@ -252,80 +252,56 @@ class DungeonEnterChatterAction : public DungeonChatterAction
 {
 public:
     DungeonEnterChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::ENTERING_DUNGEON)
-    {
-        name = "dungeon enter chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::ENTERING_DUNGEON, "dungeon enter chatter") {}
 };
 
 class AfterCombatChatterAction : public DungeonChatterAction
 {
 public:
     AfterCombatChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::AFTER_KILL)
-    {
-        name = "after combat chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::AFTER_KILL, "after combat chatter") {}
 };
 
 class LowHealthChatterAction : public DungeonChatterAction
 {
 public:
     LowHealthChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::LOW_HEALTH)
-    {
-        name = "low health chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::LOW_HEALTH, "low health chatter") {}
 };
 
 class LowManaChatterAction : public DungeonChatterAction
 {
 public:
     LowManaChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::LOW_MANA)
-    {
-        name = "low mana chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::LOW_MANA, "low mana chatter") {}
 };
 
 class DeathChatterAction : public DungeonChatterAction
 {
 public:
     DeathChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::DEATH)
-    {
-        name = "death chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::DEATH, "death chatter") {}
 };
 
 class ResurrectChatterAction : public DungeonChatterAction
 {
 public:
     ResurrectChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::RESURRECT)
-    {
-        name = "resurrect chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::RESURRECT, "resurrect chatter") {}
 };
 
 class BossPullChatterAction : public DungeonChatterAction
 {
 public:
     BossPullChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::BOSS_PULL)
-    {
-        name = "boss pull chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::BOSS_PULL, "boss pull chatter") {}
 };
 
 class BossKillChatterAction : public DungeonChatterAction
 {
 public:
     BossKillChatterAction(PlayerbotAI* ai)
-        : DungeonChatterAction(ai, ChatterCategory::BOSS_KILL)
-    {
-        name = "boss kill chatter";
-    }
+        : DungeonChatterAction(ai, ChatterCategory::BOSS_KILL, "boss kill chatter") {}
 };
 
 #endif
