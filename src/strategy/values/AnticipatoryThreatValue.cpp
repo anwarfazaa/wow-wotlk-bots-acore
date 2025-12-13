@@ -392,11 +392,10 @@ void ActiveThreatsValue::ScanEnemyCasts(std::vector<ActiveThreat>& threats)
             threat.sourcePosition.Relocate(enemy->GetPositionX(), enemy->GetPositionY(),
                                            enemy->GetPositionZ(), enemy->GetOrientation());
 
-            // Calculate timing
+            // Calculate timing - estimate based on cast time
             int32 castTime = spell->GetCastTime();
-            int32 elapsed = spell->GetTimer();
-            threat.castStartTime = now - elapsed;
-            threat.estimatedImpactTime = now + (castTime - elapsed);
+            threat.castStartTime = now;
+            threat.estimatedImpactTime = now + castTime;
 
             // Check if targeting bot
             ObjectGuid targetGuid = spell->m_targets.GetUnitTargetGUID();
