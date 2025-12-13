@@ -647,17 +647,7 @@ bool CoordinatedInterruptTrigger::ShouldThisBotInterrupt(Unit* target, uint32 sp
     if (!targetSpell)
         return false;
 
-    int32 remainingCastTime = targetSpell->GetCastTime() - targetSpell->GetTimer();
-
-    // Don't try to interrupt if cast is almost complete (< 300ms)
-    if (remainingCastTime < 300)
-        return false;
-
-    // If cast time is short, we need to act fast - be less picky
-    if (remainingCastTime < 1500)
-        return true;
-
-    // For longer casts, just return true if we can do it
+    // Target is casting - interrupt it if we can
     return true;
 }
 
