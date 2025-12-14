@@ -20,6 +20,7 @@
 #include "PlayerbotMgr.h"
 #include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
+#include "PathfindingBotManager.h"
 
 using namespace Acore::ChatCommands;
 
@@ -32,6 +33,14 @@ public:
     {
         static ChatCommandTable playerbotsDebugCommandTable = {
             {"bg", HandleDebugBGCommand, SEC_GAMEMASTER, Console::Yes},
+        };
+
+        static ChatCommandTable playerbotsPathfindCommandTable = {
+            {"start", HandlePathfindStartCommand, SEC_GAMEMASTER, Console::No},
+            {"stop", HandlePathfindStopCommand, SEC_GAMEMASTER, Console::No},
+            {"status", HandlePathfindStatusCommand, SEC_GAMEMASTER, Console::No},
+            {"promote", HandlePathfindPromoteCommand, SEC_GAMEMASTER, Console::No},
+            {"clear", HandlePathfindClearCommand, SEC_GAMEMASTER, Console::No},
         };
 
         static ChatCommandTable playerbotsAccountCommandTable = {
@@ -48,6 +57,7 @@ public:
             {"rndbot", HandleRandomPlayerbotCommand, SEC_GAMEMASTER, Console::Yes},
             {"debug", playerbotsDebugCommandTable},
             {"account", playerbotsAccountCommandTable},
+            {"pathfind", playerbotsPathfindCommandTable},
         };
 
         static ChatCommandTable commandTable = {
@@ -206,6 +216,124 @@ public:
             handler->PSendSysMessage("PlayerbotMgr instance not found.");
             return false;
         }
+    }
+
+    // Pathfinding Bot GM Commands
+    static bool HandlePathfindStartCommand(ChatHandler* handler, char const* args)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        if (!player)
+            return false;
+
+        if (!args || !*args)
+        {
+            handler->PSendSysMessage("Usage: .playerbots pathfind start <mapId>");
+            handler->PSendSysMessage("Example: .playerbots pathfind start 574 (Utgarde Keep)");
+            return false;
+        }
+
+        uint32 mapId = atoi(args);
+        if (mapId == 0)
+        {
+            handler->PSendSysMessage("Invalid map ID.");
+            return false;
+        }
+
+        if (sPathfindingBot->StartPathfinding(player, mapId))
+        {
+            handler->PSendSysMessage("Pathfinding started for map %u (%s).",
+                mapId, sPathfindingBot->GetDungeonName(mapId).c_str());
+            return true;
+        }
+        else
+        {
+            handler->PSendSysMessage("Failed to start pathfinding. Make sure you're using a bot character.");
+            return false;
+        }
+    }
+
+    static bool HandlePathfindStopCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        if (!player)
+            return false;
+
+        if (sPathfindingBot->IsActive(player))
+        {
+            sPathfindingBot->StopPathfinding(player);
+            handler->PSendSysMessage("Pathfinding stopped.");
+            return true;
+        }
+        else
+        {
+            handler->PSendSysMessage("Pathfinding is not active for this character.");
+            return false;
+        }
+    }
+
+    static bool HandlePathfindStatusCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Player* player = handler->GetSession()->GetPlayer();
+        if (!player)
+            return false;
+
+        if (!sPathfindingBot->IsActive(player))
+        {
+            handler->PSendSysMessage("Pathfinding is not active for this character.");
+            return false;
+        }
+
+        std::string status = sPathfindingBot->GetStatusString(player);
+        handler->PSendSysMessage("Pathfinding Status:");
+        handler->PSendSysMessage("%s", status.c_str());
+        handler->PSendSysMessage("Iteration: %u, Exploration: %.1f%%",
+            sPathfindingBot->GetCurrentIteration(player),
+            sPathfindingBot->GetExplorationPercent(player));
+
+        if (sPathfindingBot->IsConverged(player))
+            handler->PSendSysMessage("Status: CONVERGED - routes are stable.");
+
+        return true;
+    }
+
+    static bool HandlePathfindPromoteCommand(ChatHandler* handler, char const* args)
+    {
+        if (!args || !*args)
+        {
+            handler->PSendSysMessage("Usage: .playerbots pathfind promote <mapId>");
+            return false;
+        }
+
+        uint32 mapId = atoi(args);
+        if (mapId == 0)
+        {
+            handler->PSendSysMessage("Invalid map ID.");
+            return false;
+        }
+
+        sPathfindingBot->PromoteWaypointCandidates(mapId);
+        handler->PSendSysMessage("Waypoint candidates promoted to main table for map %u.", mapId);
+        return true;
+    }
+
+    static bool HandlePathfindClearCommand(ChatHandler* handler, char const* args)
+    {
+        if (!args || !*args)
+        {
+            handler->PSendSysMessage("Usage: .playerbots pathfind clear <mapId>");
+            return false;
+        }
+
+        uint32 mapId = atoi(args);
+        if (mapId == 0)
+        {
+            handler->PSendSysMessage("Invalid map ID.");
+            return false;
+        }
+
+        sPathfindingBot->ClearLearnedData(mapId);
+        handler->PSendSysMessage("Learned pathfinding data cleared for map %u.", mapId);
+        return true;
     }
 };
 

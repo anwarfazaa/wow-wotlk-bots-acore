@@ -4,6 +4,7 @@ This document describes the enhanced features added to this fork of [mod-playerb
 
 ## Table of Contents
 
+- [Quick Start](#quick-start)
 - [Overview](#overview)
 - [New Systems](#new-systems)
   - [Dungeon Navigator](#dungeon-navigator)
@@ -14,6 +15,60 @@ This document describes the enhanced features added to this fork of [mod-playerb
 - [Configuration](#configuration)
 - [Database Tables](#database-tables)
 - [Credits](#credits)
+
+---
+
+## Quick Start
+
+### 1. Run Database Setup
+
+After compiling, run these SQL files against your `acore_playerbots` database:
+
+```bash
+cd <azerothcore>/modules/mod-playerbots/data/sql/playerbots/base/
+mysql -u root -p acore_playerbots < playerbots_dungeon_waypoints.sql
+mysql -u root -p acore_playerbots < playerbots_boss_abilities.sql
+mysql -u root -p acore_playerbots < playerbots_pathfinding_iterations.sql
+mysql -u root -p acore_playerbots < playerbots_pathfinding_waypoint_candidates.sql
+```
+
+### 2. Summon Bots Into Dungeon
+
+If bots are outside the dungeon (e.g., after LFG queue), use the `summon` command to bring them inside:
+
+```
+/w BotName summon
+```
+
+Or summon all bots at once (party chat):
+```
+/p summon
+```
+
+### 3. Enable Tank Lead (In-Game Commands)
+
+Whisper these commands to your tank bot to enable waypoint-based dungeon navigation:
+
+```
+/w TankBot co +tank lead
+/w TankBot nc +tank lead nc
+/w TankBot nc +dungeon progress
+```
+
+For DPS/healer bots, enable progress tracking:
+```
+/w HealerBot nc +dungeon progress
+```
+
+### 4. Supported Dungeons
+
+The following dungeons have pre-defined waypoints (more can be added via the Pathfinding Bot system):
+
+| Map ID | Dungeon Name |
+|--------|--------------|
+| 574 | Utgarde Keep |
+| 576 | The Nexus |
+| 602 | Halls of Lightning |
 
 ---
 
@@ -80,6 +135,28 @@ Allows tank bots to lead groups through dungeons autonomously.
 | `announce boss` | Announce boss encounter |
 | `request human lead` | Ask human player to lead (no waypoints) |
 | `follow human leader` | Follow human player through dungeon |
+
+**Player Commands (whisper to bot or say in party):**
+```
+co +tank lead        - Enable tank lead combat strategy (tank navigates dungeon)
+co -tank lead        - Disable tank lead combat strategy
+nc +tank lead nc     - Enable tank lead non-combat strategy
+nc -tank lead nc     - Disable tank lead non-combat strategy
+nc +dungeon progress - Enable dungeon progress tracking (for all roles)
+nc -dungeon progress - Disable dungeon progress tracking
+```
+
+**Example Usage:**
+```
+# Enable full tank lead behavior on your tank bot
+/w TankBot co +tank lead
+/w TankBot nc +tank lead nc
+/w TankBot nc +dungeon progress
+
+# Enable progress tracking for DPS/healer bots
+/w HealerBot nc +dungeon progress
+/w DPSBot nc +dungeon progress
+```
 
 **Files:**
 - `src/strategy/dungeon/TankLeadStrategy.h`
@@ -150,11 +227,18 @@ IDLE -> ENTERING -> EXPLORING -> COMBAT -> BOSS_ENCOUNTER
 
 **GM Commands:**
 ```
-.playerbot pathfind start <mapId>    - Start pathfinding a dungeon
-.playerbot pathfind stop             - Stop current pathfinding
-.playerbot pathfind status           - Show current state/progress
-.playerbot pathfind promote <mapId>  - Promote waypoint candidates
-.playerbot pathfind clear <mapId>    - Clear learned data for dungeon
+.playerbots pathfind start <mapId>    - Start pathfinding a dungeon
+.playerbots pathfind stop             - Stop current pathfinding
+.playerbots pathfind status           - Show current state/progress
+.playerbots pathfind promote <mapId>  - Promote waypoint candidates to main table
+.playerbots pathfind clear <mapId>    - Clear learned data for dungeon
+```
+
+**Example:**
+```
+.playerbots pathfind start 574    (Start exploring Utgarde Keep)
+.playerbots pathfind status       (Check progress)
+.playerbots pathfind promote 574  (Promote learned routes to waypoint table)
 ```
 
 **Files:**
@@ -258,94 +342,42 @@ AiPlayerbot.PathfindingBot.MinConfidenceForPromotion = 0.8
 
 ---
 
-## Database Tables
+## Database Setup
 
-### playerbots_dungeon_waypoints
+### Required SQL Files
 
-Stores predefined waypoints for dungeon navigation.
+After compiling, you **must** run these SQL files to create the required database tables.
+Run them against your `acore_playerbots` database:
 
-```sql
-CREATE TABLE `playerbots_dungeon_waypoints` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `map_id` MEDIUMINT NOT NULL,
-    `dungeon_name` VARCHAR(64),
-    `waypoint_index` SMALLINT NOT NULL,
-    `x` FLOAT NOT NULL,
-    `y` FLOAT NOT NULL,
-    `z` FLOAT NOT NULL,
-    `orientation` FLOAT DEFAULT 0,
-    `boss_id` INT DEFAULT 0,
-    `trash_pack_id` SMALLINT DEFAULT 0,
-    `requires_clear` TINYINT DEFAULT 0,
-    `safe_radius` FLOAT DEFAULT 5.0,
-    `wait_for_group` TINYINT DEFAULT 0,
-    `is_safe_spot` TINYINT DEFAULT 0,
-    `description` VARCHAR(255),
-    INDEX `idx_map_waypoint` (`map_id`, `waypoint_index`)
-);
+```bash
+# Navigate to the module's SQL directory
+cd ~/exp/azerothcore/modules/mod-playerbots/data/sql/playerbots/base/
+
+# Run all required SQL files
+mysql -u root -p acore_playerbots < playerbots_dungeon_waypoints.sql
+mysql -u root -p acore_playerbots < playerbots_boss_abilities.sql
+mysql -u root -p acore_playerbots < playerbots_pathfinding_iterations.sql
+mysql -u root -p acore_playerbots < playerbots_pathfinding_waypoint_candidates.sql
 ```
 
-### playerbots_dungeon_progress
-
-Tracks group progress through dungeons.
-
-```sql
-CREATE TABLE `playerbots_dungeon_progress` (
-    `group_id` INT NOT NULL,
-    `map_id` MEDIUMINT NOT NULL,
-    `current_waypoint` SMALLINT DEFAULT 0,
-    `bosses_killed` VARCHAR(255) DEFAULT '',
-    `trash_cleared` VARCHAR(255) DEFAULT '',
-    `last_updated` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (`group_id`, `map_id`)
-);
+Or run them all at once:
+```bash
+cd ~/exp/azerothcore/modules/mod-playerbots/data/sql/playerbots/base/
+for f in playerbots_dungeon_waypoints.sql playerbots_boss_abilities.sql playerbots_pathfinding_iterations.sql playerbots_pathfinding_waypoint_candidates.sql; do
+  mysql -u root -p acore_playerbots < "$f"
+done
 ```
 
-### playerbots_pathfinding_iterations
+### Tables Created
 
-Stores learning data from pathfinding bot runs.
-
-```sql
-CREATE TABLE `playerbots_pathfinding_iterations` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `map_id` MEDIUMINT NOT NULL,
-    `bot_guid` BIGINT NOT NULL,
-    `iteration` SMALLINT NOT NULL,
-    `duration_ms` INT,
-    `death_count` SMALLINT DEFAULT 0,
-    `stuck_count` SMALLINT DEFAULT 0,
-    `total_distance` FLOAT,
-    `score` FLOAT,
-    `path_json` MEDIUMTEXT,
-    `bosses_killed` VARCHAR(255),
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX `idx_map_iteration` (`map_id`, `iteration`)
-);
-```
-
-### playerbots_pathfinding_waypoint_candidates
-
-Stores waypoint candidates generated by the pathfinding bot.
-
-```sql
-CREATE TABLE `playerbots_pathfinding_waypoint_candidates` (
-    `id` INT AUTO_INCREMENT PRIMARY KEY,
-    `map_id` MEDIUMINT NOT NULL,
-    `waypoint_index` SMALLINT NOT NULL,
-    `x` FLOAT NOT NULL,
-    `y` FLOAT NOT NULL,
-    `z` FLOAT NOT NULL,
-    `orientation` FLOAT DEFAULT 0,
-    `waypoint_type` TINYINT DEFAULT 0,
-    `boss_entry` INT DEFAULT 0,
-    `safe_radius` FLOAT DEFAULT 5.0,
-    `confidence` FLOAT DEFAULT 0,
-    `times_visited` INT DEFAULT 0,
-    `promoted` TINYINT DEFAULT 0,
-    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX `idx_map_waypoint` (`map_id`, `waypoint_index`)
-);
-```
+| Table | Description |
+|-------|-------------|
+| `playerbots_dungeon_waypoints` | Predefined waypoints for dungeon navigation (includes sample data for UK, Nexus, HoL) |
+| `playerbots_boss_abilities` | Boss ability data for anticipatory threat system |
+| `playerbots_pathfinding_iterations` | Learning data from pathfinding bot runs |
+| `playerbots_pathfinding_waypoint_candidates` | Waypoint candidates generated by pathfinding bot |
+| `playerbots_pathfinding_best_routes` | Best routes discovered for each dungeon |
+| `playerbots_pathfinding_stuck_locations` | Known stuck locations to avoid |
 
 ---
 
